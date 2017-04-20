@@ -1,0 +1,24 @@
+function pawnString() {
+    return `
+    `;
+}
+function knightString() {
+    return `
+    `;
+}
+function bishopString() {
+    return `
+    `;
+}
+function rookString() {
+    return `
+    `;
+}
+function queenString() {
+    return `
+    `;
+}
+function kingString() {
+    return `
+    `;
+}

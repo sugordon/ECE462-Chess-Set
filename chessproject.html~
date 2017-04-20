@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script id="vertex-shader" type="x-shader/x-vertex">
+
+attribute vec4 vPosition;
+attribute vec4 vColor;
+attribute  vec2 vTexCoord;
+
+varying vec4 fColor;
+varying vec2 fTexCoord;
+
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+
+void main() 
+{
+    gl_Position = projectionMatrix*viewMatrix*vPosition;
+    fTexCoord = vTexCoord;
+    fColor = vColor;
+} 
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec4 fColor;
+varying vec2 fTexCoord;
+
+uniform sampler2D texture;
+
+void
+main()
+{
+    gl_FragColor = fColor*texture2D( texture, fTexCoord );
+}
+</script>
+
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="initShaders.js"></script>
+<script type="text/javascript" src="MV.js"></script>
+<script type="text/javascript" src="models.js"></script>
+<script type="text/javascript" src="loadMeshData.js"></script>
+<script type="text/javascript" src="createBoard.js"></script>
+<script type="text/javascript" src="chessproject.js"></script>
+</head>
+
+<body>
+    <canvas id="gl-canvas" width="1024" height="576">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+
+</body>
+</html>
