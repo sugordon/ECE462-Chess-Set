@@ -3,7 +3,7 @@ function createBoard() {
     var colors = [];
     var texCoords = [];
     var height = 0.1;
-    var side = 8;
+    var side = 16;
     var texSize = 64;
 
     var texCoord = [

@@ -1,4 +1,4 @@
-function createCube() {
+function createBoard() {
     var points = [];
     var colors = [];
     var texCoords = [];

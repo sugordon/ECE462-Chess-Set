@@ -16,6 +16,9 @@ var colors = [];
 var texture = [];
 var texCoords = [];
 
+//Global Piece Info
+var pieceInfo = {};
+
 var modelMatrix, viewMatrix, projectionMatrix;
 var modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
 
@@ -41,7 +44,6 @@ var moveSpeed = 0.1;
 window.onload = function init() {
     initPieces();
     initGame();
-    console.log(points);
     canvas = document.getElementById("gl-canvas");
 
     gl = WebGLUtils.setupWebGL(canvas);
@@ -143,48 +145,74 @@ window.onload = function init() {
     });
 
     function initPieces() {
-        var pieces = [];
-        //var pieces = [loadMeshData(pawnString())];
-        //var pieces = [loadMeshData(pawnString()),
-            //loadMeshData(knightString()),
-            //loadMeshData(bishopString()),
-            //loadMeshData(rookString()),
-            //loadMeshData(queenString()),
-            //loadMeshData(kingString())];
+        var index = 0;
+        var board = createBoard();
+        insertPiece(board);
+        pieceInfo.board = [index, board.vertexCount];
+        index += board.vertexCount;
+
+        var pieces = [loadMeshData(pawnString()),
+            loadMeshData(knightString()),
+            //loadMeshData(pawnString()),
+            loadMeshData(bishopString()),
+            loadMeshData(rookString()),
+            loadMeshData(queenString()),
+            loadMeshData(kingString())];
+        ["wP","wN","wB","wR","wQ","wK","bP","bN","bB","bR","bQ","bK"].forEach(function(piece, i) {
+            pieceInfo[piece] = [index, pieces[i % 6].vertexCount];
+            index += pieces[i % 6].vertexCount;
+        });
 
         function insertPiece(piece) {
             points = points.concat(piece.points);
             if (piece.colors) {
                 colors = colors.concat(piece.colors);
             } else {
-                for (var i = 0; i < piece.vertexCount*6; i++) {
-                    colors.push(color);
+                for (var i = 0; i < piece.vertexCount; i++) {
+                    colors.push(vec4(color));
                 }
             }
             if (piece.texCoords) {
                 texture = piece.texture;
                 texCoords = texCoords.concat(piece.texCoords);
             } else {
-                for (var i = 0; i < piece.vertexCount*6; i++) {
+                for (var i = 0; i < piece.vertexCount; i++) {
                     texCoords.push(vec2(0,0));
                 }
             }
         }
 
-        insertPiece(createBoard());
-        var color = vec3(0,0,0,1);
+        var color = vec4(0.95, 0.95, 0.95, 1);
         pieces.forEach(insertPiece);
-        color = vec3(1,1,1,1);
+        color = vec4(0.05, 0.05, 0.05, 1);
         pieces.forEach(insertPiece);
+
     }
 
     function initGame() {
-        //for (var i = 0; i < 8; i++) {
-            //objects.push(new ChessPiece(i, "P", "W"));
-        //}
-        //for (var i = 0; i < 8; i++) {
-            //objects.push(new ChessPiece(i, "P", "B"));
-        //}
+        for (var i = 0; i < 8; i++) {
+            objects.push(new ChessPiece("wP", String.fromCharCode(i + "a".charCodeAt(0)) + '2'));
+        }
+        objects.push(new ChessPiece("wR", "a1"));
+        objects.push(new ChessPiece("wN", "b1"));
+        objects.push(new ChessPiece("wB", "c1"));
+        objects.push(new ChessPiece("wQ", "d1"));
+        objects.push(new ChessPiece("wK", "e1"));
+        objects.push(new ChessPiece("wB", "f1"));
+        objects.push(new ChessPiece("wN", "g1"));
+        objects.push(new ChessPiece("wR", "h1"));
+
+        for (var i = 0; i < 8; i++) {
+            objects.push(new ChessPiece("bP", String.fromCharCode(i + "a".charCodeAt(0)) + '7'));
+        }
+        objects.push(new ChessPiece("bR", "a8"));
+        objects.push(new ChessPiece("bN", "b8"));
+        objects.push(new ChessPiece("bB", "c8"));
+        objects.push(new ChessPiece("bQ", "d8"));
+        objects.push(new ChessPiece("bK", "e8"));
+        objects.push(new ChessPiece("bB", "f8"));
+        objects.push(new ChessPiece("bN", "g8"));
+        objects.push(new ChessPiece("bR", "h8"));
     }
 
     function configureTexture(image, texSize) {
@@ -232,11 +260,16 @@ window.onload = function init() {
  * drawIndex
  * drawSize
  */
-function ChessPiece(uid, pieceType, color) {
-    this.uid = uid;
+function ChessPiece(pieceType, position) {
     this.pieceType = pieceType;
-    this.color = color;
-    this.modelMatrix = translate(2*uid, 0, 0);
+    this.position = position;
+    this.modelMatrix = posToModelView(position);
+}
+
+function posToModelView(position) {
+    var coord = [position.charCodeAt(0) - "a".charCodeAt(0), parseInt(position[1]) - 1];
+    console.log(coord);
+    return translate(4*coord[1]-14, 0, 4*coord[0]-14);
 }
 
 //Render can be called without altering state
@@ -254,11 +287,12 @@ function render() {
     gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
 
     //Draw the board
-    gl.uniformMatrix4fv( viewMatrixLoc, false, flatten(mat4()) );
+    gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(mat4()) );
     gl.drawArrays(gl.TRIANGLES, 0, 36);
     objects.forEach(function(object) {
-        gl.uniformMatrix4fv( viewMatrixLoc, false, flatten(object.modelMatrix) );
-        gl.drawArrays(gl.TRIANGLES, object.drawIndex, object.drawSize);
+        var drawVals = pieceInfo[object.pieceType];
+        gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(object.modelMatrix) );
+        gl.drawArrays(gl.TRIANGLES, drawVals[0], drawVals[1]);
     });
 
     requestAnimFrame(render);
