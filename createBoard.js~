@@ -1,9 +1,9 @@
 function createBoard() {
     var points = [];
-    var colors = [];
+    var normals = [];
     var texCoords = [];
     var height = 0.1;
-    var side = 8;
+    var side = 16;
     var texSize = 64;
 
     var texCoord = [
@@ -41,6 +41,7 @@ function createBoard() {
     return {
         points: points,
         colors: colors,
+        normals: normals,
         vertexCount: points.length,
         texture: image2,
         texCoords: texCoords,
@@ -132,15 +133,15 @@ function createBoard() {
                 cubeColors = [0, 1, 2, 0, 4, 0];
                 break;
         }
-        _quad(1, 0, 3, 2, cubeColors[0]); //Front
-        _quad(2, 3, 7, 6, cubeColors[1]); //Right
-        _quad(3, 0, 4, 7, cubeColors[2]); //Down
-        _quad(6, 5, 1, 2, cubeColors[3]); //Up
-        _quad(4, 5, 6, 7, cubeColors[4]); //Back
-        _quad(5, 4, 0, 1, cubeColors[5]); //Left
+        _quad(1, 0, 3, 2, false); //Front
+        _quad(2, 3, 7, 6, false); //Right
+        _quad(3, 0, 4, 7, false); //Down
+        _quad(6, 5, 1, 2, true); //Up
+        _quad(4, 5, 6, 7, false); //Back
+        _quad(5, 4, 0, 1, false); //Left
     }
 
-    function _quad(a, b, c, d, colorIndex) {
+    function _quad(a, b, c, d, isColored) {
         var vertices = [
             vec4( -side, -height,  side, 1.0 ),
             vec4( -side,  height,  side, 1.0 ),
@@ -152,24 +153,43 @@ function createBoard() {
             vec4(  side, -height, -side, 1.0 )
         ];
 
-        var vertexColors = [
-            [0.0,       0.0,        0.0,        1.0],   // 0, black
-            [196/255,   30/255,     58/255,     1.0],   // 1, red
-            [255/255,   213/255,    0.0,        1.0],   // 2, yellow
-            [0.0,       158/255,    96/255,     1.0],   // 3, green
-            [0.0,       81/255,     186/255,    1.0],   // 4, blue
-            [255/255,   88/255,     0.0,        1.0],   // 5, Orange
-            [1.0,       1.0,        1.0,        1.0]    // 6, white
-        ];
-
         var indices = [ a, b, c, a, c, d ];
         var coord = [ 0, 1, 2, 0, 2, 3];
 
         for ( var i = 0; i < indices.length; ++i ) {
-            points.push( vertices[indices[i]] );
-            colors.push(vertexColors[colorIndex]);
-            texCoords.push(texCoord[coord[i]]);
+            points.push(vertices[indices[i]]);
+            if (isColored) {
+                texCoords.push(texCoord[coord[i]]);
+            } else {
+                texCoords.push(texCoord[0]);
+            }
         }
+
+        var x = vertices[a];
+        var y = vertices[b];
+        var z = vertices[c];
+
+        var t1 = subtract(y, x);
+        var t2 = subtract(z, x);
+        var normal = normalize(cross(t2, t1));
+        normal = vec4(normal);
+        normal[3]  = 0.0;
+        normals.push(normal);
+        normals.push(normal);
+        normals.push(normal);
+
+        x = vertices[a];
+        y = vertices[c];
+        z = vertices[d];
+
+        t1 = subtract(y, x);
+        t2 = subtract(z, x);
+        normal = normalize(cross(t2, t1));
+        normal = vec4(normal);
+        normal[3]  = 0.0;
+        normals.push(normal);
+        normals.push(normal);
+        normals.push(normal);
     }
 }
 

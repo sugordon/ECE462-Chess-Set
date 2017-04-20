@@ -3,6 +3,7 @@ function loadMeshData(string) {
     var positions = [];
     var normals = [];
     var vertices = [];
+    var normals = [];
 
     for ( var i = 0 ; i < lines.length ; i++ ) {
         var parts = lines[i].trimRight().split(' ');
@@ -22,9 +23,23 @@ function loadMeshData(string) {
                         ));
                     break;
                 case 'f': {
-                    vertices.push(positions[parseInt(parts[1] - 1)]);
-                    vertices.push(positions[parseInt(parts[2] - 1)]);
-                    vertices.push(positions[parseInt(parts[3] - 1)]);
+                    var a = positions[parseInt(parts[1] - 1)];
+                    var b = positions[parseInt(parts[2] - 1)];
+                    var c = positions[parseInt(parts[3] - 1)];
+
+                    var t1 = subtract(b, a);
+                    var t2 = subtract(c, a);
+                    var normal = normalize(cross(t2, t1));
+                    normal = vec4(normal);
+                    normal[3]  = 0.0;
+
+                    normals.push(normal);
+                    normals.push(normal);
+                    normals.push(normal);
+
+                    vertices.push(a);
+                    vertices.push(b);
+                    vertices.push(c);
                     break;
                 }
             }
@@ -34,6 +49,7 @@ function loadMeshData(string) {
     return {
         primitiveType: 'TRIANGLES',
         points: vertices,
+        normals: normals,
         vertexCount: vertexCount
     };
 }

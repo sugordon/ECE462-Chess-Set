@@ -12,15 +12,27 @@ var objects = [];
  * 7-12: black pieces
  */
 var points = [];
-var colors = [];
+var normals = [];
 var texture = [];
 var texCoords = [];
 
 //Global Piece Info
 var pieceInfo = {};
 
-var modelMatrix, viewMatrix, projectionMatrix;
-var modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
+var normalMatrix, modelMatrix, viewMatrix, projectionMatrix;
+var normalMatrixLoc, modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
+
+var lightPosition = vec4(0.0, -1.0, 10.0, 0.0 );
+
+var lightAmbient = vec4(0.3, 0.3, 0.3, 1.0 );
+var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
+var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
+
+//var materialAmbient = vec4( 0.99, 0.99, 0.99, 1.0 );
+var materialAmbient = vec4( 0.99, 0.99, 0.99, 1.0 );
+var materialDiffuse = vec4( 0.99, 0.99, 0.99, 1.0 );
+var materialSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
+var materialShininess = 1000.0;
 
 var eye = vec3(0,1,-20);
 var at = add(eye, vec3(0,0,1));
@@ -39,11 +51,18 @@ var keysHeld = {
     s: 0,
     d: 0
 };
+
+initPieces();
+
+var ambientProduct = mult(lightAmbient, materialAmbient);
+var diffuseProduct = mult(lightDiffuse, materialDiffuse);
+var specularProduct = mult(lightSpecular, materialSpecular);
+
+initGame();
+
 var moveSpeed = 0.1;
 
 window.onload = function init() {
-    initPieces();
-    initGame();
     canvas = document.getElementById("gl-canvas");
 
     gl = WebGLUtils.setupWebGL(canvas);
@@ -57,13 +76,13 @@ window.onload = function init() {
     var program = initShaders( gl, "vertex-shader", "fragment-shader" );
     gl.useProgram( program );
 
-    var cBuffer = gl.createBuffer();
-    gl.bindBuffer( gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData( gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW );
+    var nBuffer = gl.createBuffer();
+    gl.bindBuffer( gl.ARRAY_BUFFER, nBuffer);
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(normals), gl.STATIC_DRAW );
 
-    var vColor = gl.getAttribLocation( program, "vColor" );
-    gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
-    gl.enableVertexAttribArray( vColor);
+    var vNormal = gl.getAttribLocation( program, "vNormal" );
+    gl.vertexAttribPointer( vNormal, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vNormal);
 
     var vBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer);
@@ -86,8 +105,20 @@ window.onload = function init() {
     modelMatrixLoc = gl.getUniformLocation( program, "modelMatrix" );
     viewMatrixLoc = gl.getUniformLocation( program, "viewMatrix" );
     projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
+    normalMatrixLoc = gl.getUniformLocation( program, "normalMatrix" );
     gl.uniformMatrix4fv(viewMatrixLoc, false, flatten(mat4()));
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(mat4()));
+
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "ambientProduct"),flatten(ambientProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "diffuseProduct"),flatten(diffuseProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "specularProduct"),flatten(specularProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "lightPosition"),flatten(lightPosition) );
+    gl.uniform1f( gl.getUniformLocation(program,
+       "shininess"),materialShininess );
 
     document.addEventListener("keydown", function(event) {
         var lookSpeed = 5;
@@ -144,76 +175,6 @@ window.onload = function init() {
         }
     });
 
-    function initPieces() {
-        var index = 0;
-        var board = createBoard();
-        insertPiece(board);
-        pieceInfo.board = [index, board.vertexCount];
-        index += board.vertexCount;
-
-        var pieces = [loadMeshData(pawnString()),
-            loadMeshData(knightString()),
-            //loadMeshData(pawnString()),
-            loadMeshData(bishopString()),
-            loadMeshData(rookString()),
-            loadMeshData(queenString()),
-            loadMeshData(kingString())];
-        ["wP","wN","wB","wR","wQ","wK","bP","bN","bB","bR","bQ","bK"].forEach(function(piece, i) {
-            pieceInfo[piece] = [index, pieces[i % 6].vertexCount];
-            index += pieces[i % 6].vertexCount;
-        });
-
-        function insertPiece(piece) {
-            points = points.concat(piece.points);
-            if (piece.colors) {
-                colors = colors.concat(piece.colors);
-            } else {
-                for (var i = 0; i < piece.vertexCount; i++) {
-                    colors.push(vec4(color));
-                }
-            }
-            if (piece.texCoords) {
-                texture = piece.texture;
-                texCoords = texCoords.concat(piece.texCoords);
-            } else {
-                for (var i = 0; i < piece.vertexCount; i++) {
-                    texCoords.push(vec2(0,0));
-                }
-            }
-        }
-
-        var color = vec4(0.95, 0.95, 0.95, 1);
-        pieces.forEach(insertPiece);
-        color = vec4(0.05, 0.05, 0.05, 1);
-        pieces.forEach(insertPiece);
-
-    }
-
-    function initGame() {
-        for (var i = 0; i < 8; i++) {
-            objects.push(new ChessPiece("wP", String.fromCharCode(i + "a".charCodeAt(0)) + '2'));
-        }
-        objects.push(new ChessPiece("wR", "a1"));
-        objects.push(new ChessPiece("wN", "b1"));
-        objects.push(new ChessPiece("wB", "c1"));
-        objects.push(new ChessPiece("wQ", "d1"));
-        objects.push(new ChessPiece("wK", "e1"));
-        objects.push(new ChessPiece("wB", "f1"));
-        objects.push(new ChessPiece("wN", "g1"));
-        objects.push(new ChessPiece("wR", "h1"));
-
-        for (var i = 0; i < 8; i++) {
-            objects.push(new ChessPiece("bP", String.fromCharCode(i + "a".charCodeAt(0)) + '7'));
-        }
-        objects.push(new ChessPiece("bR", "a7"));
-        objects.push(new ChessPiece("bN", "b7"));
-        objects.push(new ChessPiece("bB", "c7"));
-        objects.push(new ChessPiece("bQ", "d7"));
-        objects.push(new ChessPiece("bK", "e7"));
-        objects.push(new ChessPiece("bB", "f7"));
-        objects.push(new ChessPiece("bN", "g7"));
-        objects.push(new ChessPiece("bR", "h7"));
-    }
 
     function configureTexture(image, texSize) {
         if (image.length === 0) {
@@ -250,6 +211,72 @@ window.onload = function init() {
     }
 }
 
+function initPieces() {
+    var index = 0;
+    var board = createBoard();
+    insertPiece(board);
+    pieceInfo.board = [index, board.vertexCount];
+    index += board.vertexCount;
+
+
+    var pieces = [loadMeshData(pawnString()),
+        loadMeshData(knightString()),
+        loadMeshData(bishopString()),
+        loadMeshData(rookString()),
+        loadMeshData(queenString()),
+        loadMeshData(kingString())];
+    ["wP","wN","wB","wR","wQ","wK","bP","bN","bB","bR","bQ","bK"].forEach(function(piece, i) {
+        pieceInfo[piece] = [index, pieces[i % 6].vertexCount];
+        index += pieces[i % 6].vertexCount;
+    });
+
+    function insertPiece(piece) {
+        points = points.concat(piece.points);
+        normals = normals.concat(piece.normals);
+        colors.push(vec4(color));
+        if (piece.texCoords) {
+            texture = piece.texture;
+            texCoords = texCoords.concat(piece.texCoords);
+        } else {
+            for (var i = 0; i < piece.vertexCount; i++) {
+                texCoords.push(vec2(0,0));
+            }
+        }
+    }
+
+    var color = vec4(0.95, 0.95, 0.95, 1);
+    pieces.forEach(insertPiece);
+    color = vec4(0.05, 0.05, 0.05, 1);
+    pieces.forEach(insertPiece);
+
+}
+
+function initGame() {
+    for (var i = 0; i < 8; i++) {
+        objects.push(new ChessPiece("wP", String.fromCharCode(i + "a".charCodeAt(0)) + '2'));
+    }
+    objects.push(new ChessPiece("wR", "a1"));
+    objects.push(new ChessPiece("wN", "b1"));
+    objects.push(new ChessPiece("wB", "c1"));
+    objects.push(new ChessPiece("wQ", "d1"));
+    objects.push(new ChessPiece("wK", "e1"));
+    objects.push(new ChessPiece("wB", "f1"));
+    objects.push(new ChessPiece("wN", "g1"));
+    objects.push(new ChessPiece("wR", "h1"));
+
+    for (var i = 0; i < 8; i++) {
+        objects.push(new ChessPiece("bP", String.fromCharCode(i + "a".charCodeAt(0)) + '7'));
+    }
+    objects.push(new ChessPiece("bR", "a8"));
+    objects.push(new ChessPiece("bN", "b8"));
+    objects.push(new ChessPiece("bB", "c8"));
+    objects.push(new ChessPiece("bQ", "d8"));
+    objects.push(new ChessPiece("bK", "e8"));
+    objects.push(new ChessPiece("bB", "f8"));
+    objects.push(new ChessPiece("bN", "g8"));
+    objects.push(new ChessPiece("bR", "h8"));
+}
+
 /* Piece Class
  * uid
  * isCaptured
@@ -268,7 +295,6 @@ function ChessPiece(pieceType, position) {
 
 function posToModelView(position) {
     var coord = [position.charCodeAt(0) - "a".charCodeAt(0), parseInt(position[1]) - 1];
-    console.log(coord);
     return translate(4*coord[1]-14, 0, 4*coord[0]-14);
 }
 
@@ -285,13 +311,21 @@ function render() {
 
     gl.uniformMatrix4fv( viewMatrixLoc, false, flatten(viewMatrix) );
     gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
+    normalMatrix = [
+        vec3(viewMatrix[0][0], viewMatrix[0][1], viewMatrix[0][2]),
+        vec3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]),
+        vec3(viewMatrix[2][0], viewMatrix[2][1], viewMatrix[2][2])
+    ];
+    gl.uniformMatrix3fv(normalMatrixLoc, false, flatten(normalMatrix) );
 
     //Draw the board
     gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(mat4()) );
     gl.drawArrays(gl.TRIANGLES, 0, 36);
+
     objects.forEach(function(object) {
         var drawVals = pieceInfo[object.pieceType];
         gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(object.modelMatrix) );
+        gl.uniformMatrix3fv(normalMatrixLoc, false, flatten(normalMatrix) );
         gl.drawArrays(gl.TRIANGLES, drawVals[0], drawVals[1]);
     });
 
