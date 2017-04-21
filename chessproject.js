@@ -19,12 +19,14 @@ var texCoords = [];
 //Global Piece Info
 var pieceInfo = {};
 
-var normalMatrix, modelMatrix, viewMatrix, projectionMatrix;
-var normalMatrixLoc, modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
+var modelMatrix, viewMatrix, projectionMatrix;
+var modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
 
-var lightPosition = vec4(0.0, -1.0, 10.0, 0.0 );
+var ambientProductLoc, diffuseProductLoc, specularProductLoc;
 
-var lightAmbient = vec4(0.3, 0.3, 0.3, 1.0 );
+var lightPosition = vec4(0.0, -1.0, 5.0, 0.0 );
+
+var lightAmbient = vec4(0.5, 0.5, 0.5, 1.0 );
 var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
 var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
 
@@ -32,9 +34,9 @@ var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
 var materialAmbient = vec4( 0.99, 0.99, 0.99, 1.0 );
 var materialDiffuse = vec4( 0.99, 0.99, 0.99, 1.0 );
 var materialSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
-var materialShininess = 1000.0;
+var materialShininess = 10.0;
 
-var eye = vec3(0,1,-20);
+var eye = vec3(0,1,0);
 var at = add(eye, vec3(0,0,1));
 var up = vec3(0.0, 1.0, 0.0);
 var fovy, aspect, near, far;
@@ -45,24 +47,27 @@ var phi = 0;
 var xsens = 0.1;
 var ysens = 0.1;
 
+var boardAmbientProduct;
+var boardDiffuseProduct;
+var boardSpecularProduct;
+
 var keysHeld = {
     w: 0,
     a: 0,
     s: 0,
     d: 0
 };
-
-initPieces();
-
-var ambientProduct = mult(lightAmbient, materialAmbient);
-var diffuseProduct = mult(lightDiffuse, materialDiffuse);
-var specularProduct = mult(lightSpecular, materialSpecular);
-
-initGame();
-
 var moveSpeed = 0.1;
+var currPos = [0, 0];
+var isMovingPiece = false;
+var movingPiece;
 
 window.onload = function init() {
+
+    initPieces();
+
+    initGame();
+
     canvas = document.getElementById("gl-canvas");
 
     gl = WebGLUtils.setupWebGL(canvas);
@@ -105,23 +110,24 @@ window.onload = function init() {
     modelMatrixLoc = gl.getUniformLocation( program, "modelMatrix" );
     viewMatrixLoc = gl.getUniformLocation( program, "viewMatrix" );
     projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
-    normalMatrixLoc = gl.getUniformLocation( program, "normalMatrix" );
     gl.uniformMatrix4fv(viewMatrixLoc, false, flatten(mat4()));
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(mat4()));
 
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "ambientProduct"),flatten(ambientProduct) );
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "diffuseProduct"),flatten(diffuseProduct) );
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "specularProduct"),flatten(specularProduct) );
+    ambientProductLoc = gl.getUniformLocation(program, "ambientProduct");
+    diffuseProductLoc = gl.getUniformLocation(program, "diffuseProduct");
+    specularProductLoc = gl.getUniformLocation(program, "specularProduct");
+
+
+    var ambientProduct = mult(lightAmbient, materialAmbient);
+    var diffuseProduct = mult(lightDiffuse, materialDiffuse);
+    var specularProduct = mult(lightSpecular, materialSpecular);
+
     gl.uniform4fv( gl.getUniformLocation(program,
        "lightPosition"),flatten(lightPosition) );
     gl.uniform1f( gl.getUniformLocation(program,
        "shininess"),materialShininess );
 
     document.addEventListener("keydown", function(event) {
-        var lookSpeed = 5;
         switch (event.key) {
             case 'a':
                 keysHeld.a = 1;
@@ -134,6 +140,14 @@ window.onload = function init() {
                 break;
             case 's':
                 keysHeld.s = 1;
+                break;
+            case ' ':
+                console.log(isMovingPiece);
+                if (isMovingPiece) {
+                    jumpDown();
+                } else {
+                    jumpIntoPiece();
+                }
                 break;
         }
     });
@@ -158,7 +172,6 @@ window.onload = function init() {
     }
 
     document.addEventListener("keyup", function(event) {
-        var lookSpeed = 5;
         switch (event.key) {
             case 'a':
                 keysHeld.a = 0;
@@ -211,6 +224,36 @@ window.onload = function init() {
     }
 }
 
+function jumpDown() {
+    var dir = vec3(0, -eye[1] + 1, 0);
+    eye = add(eye, dir);
+    at = add(at, dir);
+    var transformedPos = [Math.round((currPos[1]+14)/4), Math.round((currPos[0]+14)/4)];
+    movingPiece.modelMatrix = translate(4*transformedPos[1]-14, 0, 4*transformedPos[0]-14);
+    movingPiece.position = transformedPos;
+    isMovingPiece = false;
+}
+
+function jumpIntoPiece() {
+    var transformedPos = [Math.round((currPos[1]+14)/4), Math.round((currPos[0]+14)/4)];
+    movingPiece = closestPiece(transformedPos);
+    if (!movingPiece)  return;
+    var atDir = subtract(at, eye);
+    eye = vec3(4*transformedPos[1]-14, movingPiece.height, 4*transformedPos[0]-14);
+    at = add(eye, atDir);
+    isMovingPiece = true;
+}
+
+function closestPiece(transformedPos) {
+    var ret;
+    objects.forEach(function(obj) {
+        if (transformedPos[0] == obj.position[0] && transformedPos[1] == obj.position[1]) {
+            ret = obj;
+        }
+    });
+    return ret;
+}
+
 function initPieces() {
     var index = 0;
     var board = createBoard();
@@ -218,6 +261,10 @@ function initPieces() {
     pieceInfo.board = [index, board.vertexCount];
     index += board.vertexCount;
 
+    var color = vec4(220/255, 181/255, 150/255);
+    boardAmbientProduct = mult(lightAmbient, color);
+    boardDiffuseProduct = mult(lightDiffuse, color);
+    boardSpecularProduct = mult(lightSpecular, color);
 
     var pieces = [loadMeshData(pawnString()),
         loadMeshData(knightString()),
@@ -225,6 +272,7 @@ function initPieces() {
         loadMeshData(rookString()),
         loadMeshData(queenString()),
         loadMeshData(kingString())];
+    console.log(pieces[2].points.length);
     ["wP","wN","wB","wR","wQ","wK","bP","bN","bB","bR","bQ","bK"].forEach(function(piece, i) {
         pieceInfo[piece] = [index, pieces[i % 6].vertexCount];
         index += pieces[i % 6].vertexCount;
@@ -233,7 +281,6 @@ function initPieces() {
     function insertPiece(piece) {
         points = points.concat(piece.points);
         normals = normals.concat(piece.normals);
-        //colors.push(vec4(color));
         if (piece.texCoords) {
             texture = piece.texture;
             texCoords = texCoords.concat(piece.texCoords);
@@ -253,48 +300,72 @@ function initPieces() {
 
 function initGame() {
     for (var i = 0; i < 8; i++) {
-        objects.push(new ChessPiece("wP", String.fromCharCode(i + "a".charCodeAt(0)) + '2'));
+        objects.push(new ChessPiece("wP", [i, 1]));
     }
-    objects.push(new ChessPiece("wR", "a1"));
-    objects.push(new ChessPiece("wN", "b1"));
-    objects.push(new ChessPiece("wB", "c1"));
-    objects.push(new ChessPiece("wQ", "d1"));
-    objects.push(new ChessPiece("wK", "e1"));
-    objects.push(new ChessPiece("wB", "f1"));
-    objects.push(new ChessPiece("wN", "g1"));
-    objects.push(new ChessPiece("wR", "h1"));
+    objects.push(new ChessPiece("wR", [0, 0]));
+    objects.push(new ChessPiece("wN", [1, 0]));
+    objects.push(new ChessPiece("wB", [2, 0]));
+    objects.push(new ChessPiece("wQ", [3, 0]));
+    objects.push(new ChessPiece("wK", [4, 0]));
+    objects.push(new ChessPiece("wB", [5, 0]));
+    objects.push(new ChessPiece("wN", [6, 0]));
+    objects.push(new ChessPiece("wR", [7, 0]));
 
     for (var i = 0; i < 8; i++) {
-        objects.push(new ChessPiece("bP", String.fromCharCode(i + "a".charCodeAt(0)) + '7'));
+        objects.push(new ChessPiece("bP", [i, 6]));
     }
-    objects.push(new ChessPiece("bR", "a8"));
-    objects.push(new ChessPiece("bN", "b8"));
-    objects.push(new ChessPiece("bB", "c8"));
-    objects.push(new ChessPiece("bQ", "d8"));
-    objects.push(new ChessPiece("bK", "e8"));
-    objects.push(new ChessPiece("bB", "f8"));
-    objects.push(new ChessPiece("bN", "g8"));
-    objects.push(new ChessPiece("bR", "h8"));
+    objects.push(new ChessPiece("bR", [0, 7]));
+    objects.push(new ChessPiece("bN", [1, 7]));
+    objects.push(new ChessPiece("bB", [2, 7]));
+    objects.push(new ChessPiece("bQ", [3, 7]));
+    objects.push(new ChessPiece("bK", [4, 7]));
+    objects.push(new ChessPiece("bB", [5, 7]));
+    objects.push(new ChessPiece("bN", [6, 7]));
+    objects.push(new ChessPiece("bR", [7, 7]));
 }
 
-/* Piece Class
- * uid
- * isCaptured
- * position
- * color
- * pieceType
- * modelMatrix
- * drawIndex
- * drawSize
- */
 function ChessPiece(pieceType, position) {
     this.pieceType = pieceType;
     this.position = position;
     this.modelMatrix = posToModelView(position);
+    this.ambient;
+    this.diffuse;
+    var color;
+    if (pieceType[0] == 'w') {
+        color = vec4(182/255, 155/255, 76/255, 1);
+    } else {
+        color = vec4(70/255, 31/255, 0/255, 1);
+    }
+    this.ambient = mult(lightAmbient, color);
+    this.diffuse = mult(lightDiffuse, color);
+    this.specular = mult(lightSpecular, color);
+    switch(pieceType[1]) {
+        case 'K':
+            this.height = 6;
+            break;
+        case 'Q':
+            this.height = 6;
+            break;
+        case 'R':
+            this.height = 5;
+            break;
+        case 'B':
+            this.height = 6;
+            break;
+        case 'N':
+            this.height = 5;
+            break;
+        case 'P':
+            this.height = 5;
+            break;
+    }
 }
 
-function posToModelView(position) {
-    var coord = [position.charCodeAt(0) - "a".charCodeAt(0), parseInt(position[1]) - 1];
+function posToCoord(position) {
+    return [position.charCodeAt(0) - "a".charCodeAt(0), parseInt(position[1]) - 1];
+}
+
+function posToModelView(coord) {
     return translate(4*coord[1]-14, 0, 4*coord[0]-14);
 }
 
@@ -311,21 +382,23 @@ function render() {
 
     gl.uniformMatrix4fv( viewMatrixLoc, false, flatten(viewMatrix) );
     gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
-    normalMatrix = [
-        vec3(viewMatrix[0][0], viewMatrix[0][1], viewMatrix[0][2]),
-        vec3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]),
-        vec3(viewMatrix[2][0], viewMatrix[2][1], viewMatrix[2][2])
-    ];
-    gl.uniformMatrix3fv(normalMatrixLoc, false, flatten(normalMatrix) );
 
     //Draw the board
     gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(mat4()) );
+
+    gl.uniform4fv(ambientProductLoc, flatten(boardAmbientProduct));
+    gl.uniform4fv(diffuseProductLoc, flatten(boardDiffuseProduct) );
+    gl.uniform4fv(specularProductLoc, flatten(boardSpecularProduct) );
+
     gl.drawArrays(gl.TRIANGLES, 0, 36);
 
     objects.forEach(function(object) {
+        gl.uniform4fv(ambientProductLoc, flatten(object.ambient));
+        gl.uniform4fv(diffuseProductLoc, flatten(object.diffuse));
+        gl.uniform4fv(specularProductLoc, flatten(object.specular));
+
         var drawVals = pieceInfo[object.pieceType];
         gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(object.modelMatrix) );
-        gl.uniformMatrix3fv(normalMatrixLoc, false, flatten(normalMatrix) );
         gl.drawArrays(gl.TRIANGLES, drawVals[0], drawVals[1]);
     });
 
@@ -333,7 +406,8 @@ function render() {
 }
 
 function handleKeys() {
-    if ((keysHeld.w && keysHeld.s) || (keysHeld.a && keysHeld.d)) {
+    if ((keysHeld.w && keysHeld.s) || (keysHeld.a && keysHeld.d) ||
+        (!keysHeld.w && !keysHeld.s && !keysHeld.a && !keysHeld.d)) {
         return;
     }
     var dir1, dir2, fdir;
@@ -360,8 +434,13 @@ function handleKeys() {
         return;
     }
     fdir = scale(moveSpeed/length(fdir), fdir);
+    currPos[0] += fdir[0];
+    currPos[1] += fdir[2];
     eye = add(eye, fdir);
     at = add(at, fdir);
+    if (isMovingPiece) {
+        movingPiece.modelMatrix = mult(movingPiece.modelMatrix, translate(fdir[0], fdir[1], fdir[2]));
+    }
 }
 
 //Handles rotation speed

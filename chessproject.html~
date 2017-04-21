@@ -66,8 +66,8 @@ main()
     fColor = ambient + diffuse +specular;
     fColor.a = 1.0;
 
-    //gl_FragColor = fColor*texture2D( texture, fTexCoord );
-    gl_FragColor = fColor;
+    gl_FragColor = fColor*texture2D( texture, fTexCoord );
+    //gl_FragColor = fColor;
 }
 </script>
 
