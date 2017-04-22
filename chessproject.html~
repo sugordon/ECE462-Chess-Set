@@ -8,7 +8,6 @@ attribute vec4 vPosition;
 attribute vec4 vNormal;
 varying vec3 N, L, E;
 uniform vec4 lightPosition;
-uniform mat3 normalMatrix;
 
 attribute vec2 vTexCoord;
 
@@ -81,9 +80,24 @@ main()
 </head>
 
 <body>
-    <canvas id="gl-canvas" width="1024" height="576">
-        Oops ... your browser doesn't support the HTML5 canvas element
-    </canvas>
+<canvas id="gl-canvas" width="1024" height="576">
+    Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+<br/>
+<br/>
+<label for="quality">Quality: </label>
+<select id="quality" name="quality">
+	<option value="0">Low</option>
+	<option value="1">Medium</option>
+	<option value="2">High</option>
+	<option value="3">Ultra</option>
+</select>
+<button onclick="applyQuality()">Apply</button>
+
+<br/>
+
+<label for="lighting">Lighting Angle: </label>
+-180<input type="range" min="-180" max="180" value="45" id="lighting" name="lighting" onchange="" />180
 
 </body>
 </html>
