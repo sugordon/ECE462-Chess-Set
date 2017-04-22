@@ -44,7 +44,7 @@ var up = vec3(0.0, 1.0, 0.0);
 var isMovingEye = false;
 var eyeTarget;
 var eyeDir;
-var eyeAnimTotal = 16;
+var eyeAnimTotal = 24;
 var eyeAnimFrame;
 
 var theta = 90*Math.PI/180;

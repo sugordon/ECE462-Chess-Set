@@ -22,8 +22,6 @@ void main()
 {
     vec3 pos = (modelMatrix * vPosition).xyz;
     L = normalize(lightPosition.xyz);
-    //if(lightPosition.w == 0.0) L = normalize(lightPosition.xyz);
-    //else L = normalize( lightPosition.xyz - pos );
 
     E =  -normalize(pos);
     N = normalize( (modelMatrix*vNormal).xyz);
@@ -101,6 +99,7 @@ main()
 <br/>
 <button onclick="resetBoard()">Reset Board</button>
 <button onclick="clearBoard()">Clear Board</button>
+<p>WASD to move around. Mouse to look around. Space to enter/exit piece</p>
 
 </body>
 </html>
