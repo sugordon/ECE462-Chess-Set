@@ -41,6 +41,12 @@ var eye = vec3(0,1,0);
 var at = add(eye, vec3(0,0,1));
 var up = vec3(0.0, 1.0, 0.0);
 
+var isMovingEye = false;
+var eyeTarget;
+var eyeDir;
+var eyeAnimTotal = 16;
+var eyeAnimFrame;
+
 var theta = 90*Math.PI/180;
 var phi = 0;
 
@@ -233,9 +239,6 @@ window.onload = function init() {
 }
 
 function jumpDown() {
-    var dir = vec3(0, -eye[1] + 1, 0);
-    eye = add(eye, dir);
-    at = add(at, dir);
     var transformedPos = [Math.round((currPos[1]+14)/4), Math.round((currPos[0]+14)/4)];
     if (transformedPos[0] > 7 || transformedPos[0] < 0 || transformedPos[1] > 7 || transformedPos[1] < 0) {
         transformedPos = captureLoc(movingPiece);
@@ -246,10 +249,16 @@ function jumpDown() {
     }
     movePieceToLoc(movingPiece, transformedPos);
     isMovingPiece = false;
+
+    var dir = vec3(0, -eye[1] + 1, 0);
+    eyeTarget = add(eye, dir);
+    eyeDir = scale(1/eyeAnimTotal, dir);
+    eyeAnimFrame = 0;
+    isMovingEye = true;
 }
 
 function movePieceToLoc(piece, loc) {
-    piece.modelMatrix = translate(4*loc[1]-14, 0, 4*loc[0]-14);
+    piece.modelMatrix = mult(translate(4*loc[1]-14, 0, 4*loc[0]-14), piece.originalModelMatrix);
     piece.position = loc;
 }
 
@@ -269,12 +278,14 @@ function jumpIntoPiece() {
     var transformedPos = [Math.round((currPos[1]+14)/4), Math.round((currPos[0]+14)/4)];
     movingPiece = closestPiece(transformedPos);
     if (!movingPiece)  return;
-    var atDir = subtract(at, eye);
-    eye = vec3(4*transformedPos[1]-14, movingPiece.height, 4*transformedPos[0]-14);
-    at = add(eye, atDir);
     currPos[0] = 4*transformedPos[1]-14;
     currPos[1] = 4*transformedPos[0]-14;
     isMovingPiece = true;
+
+    eyeTarget = vec3(4*transformedPos[1]-14, movingPiece.height, 4*transformedPos[0]-14);
+    eyeDir = scale(1/eyeAnimTotal, subtract(eyeTarget, eye));
+    eyeAnimFrame = 0;
+    isMovingEye = true;
 }
 
 function closestPiece(transformedPos) {
@@ -347,6 +358,18 @@ function initPieces(qualityVal) {
     pieces.forEach(insertPiece);
 }
 
+function resetBoard() {
+    objects.forEach(function(obj) {
+        movePieceToLoc(obj, obj.startingPos);
+    });
+}
+
+function clearBoard() {
+    objects.forEach(function(obj) {
+        movePieceToLoc(obj, captureLoc(obj));
+    });
+}
+
 function initGame() {
     for (var i = 0; i < 8; i++) {
         objects.push(new ChessPiece("wP", [i, 1]));
@@ -399,7 +422,6 @@ function ChessPiece(pieceType, position) {
             this.height = 5;
             break;
     }
-    this.modelMatrix = mult(posToModelView(position), this.modelMatrix);
     this.ambient;
     this.diffuse;
     var color;
@@ -409,6 +431,8 @@ function ChessPiece(pieceType, position) {
         color = vec4(70/255, 31/255, 0/255, 1);
         this.modelMatrix = mult(this.modelMatrix, rotateY(180));
     }
+    this.originalModelMatrix = this.modelMatrix;
+    this.modelMatrix = mult(posToModelView(position), this.modelMatrix);
     this.ambient = mult(lightAmbient, color);
     this.diffuse = mult(lightDiffuse, color);
     this.specular = mult(lightSpecular, color);
@@ -505,13 +529,25 @@ function handleKeys() {
     eye = add(eye, fdir);
     at = add(at, fdir);
     if (isMovingPiece) {
-        movingPiece.modelMatrix = mult(movingPiece.modelMatrix, translate(fdir[0], fdir[1], fdir[2]));
+        movingPiece.modelMatrix = mult(translate(fdir[0], fdir[1], fdir[2]), movingPiece.modelMatrix);
     }
 }
 
 //Handles rotation speed
 function tick() {
-    handleKeys();
+    if (isMovingEye) {
+        eyeAnimFrame += 1;
+        if (eyeAnimFrame === eyeAnimTotal) {
+            eye = eyeTarget;
+            isMovingEye = false;
+        }
+        var atDir = subtract(at, eye);
+        eye = add(eye, eyeDir);
+        at = add(eye, atDir);
+    } else {
+        handleKeys();
+    }
+
     //if (isTurning) {
         //turningCubes.forEach(function(cubeIndex) {
             //turnMatrix[cubeIndex] = mult(turningVec, turnMatrix[cubeIndex]);

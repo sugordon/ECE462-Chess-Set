@@ -87,17 +87,20 @@ main()
 <br/>
 <label for="quality">Quality: </label>
 <select id="quality" name="quality">
-	<option value="0">Low</option>
-	<option value="1">Medium</option>
-	<option value="2">High</option>
-	<option value="3">Ultra</option>
+	<option value="0">Low: 80940 triangles</option>
+	<option value="1">Medium: 319308 triangles</option>
+	<option value="2">High: 1277196 triangles</option>
+	<option value="3">Ultra: 5108748 triangles</option>
 </select>
 <button onclick="applyQuality()">Apply</button>
 
 <br/>
 
 <label for="lighting">Lighting Angle: </label>
--180<input type="range" min="-180" max="180" value="45" id="lighting" name="lighting" onchange="" />180
+-180<input type="range" min="-180" max="180" value="45" id="lighting" name="lighting" onchange="changeLighting()" />180
+<br/>
+<button onclick="resetBoard()">Reset Board</button>
+<button onclick="clearBoard()">Clear Board</button>
 
 </body>
 </html>
