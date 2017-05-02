@@ -20,22 +20,22 @@ var texCoords = [];
 //Global Piece Info
 var pieceInfo = {};
 
-var modelMatrix, viewMatrix, projectionMatrix;
-var modelMatrixLoc, viewMatrixLoc, projectionMatrixLoc;
+var modelMatrix, viewMatrix;
+var modelMatrixLoc, viewMatrixLoc;
 
 var ambientProductLoc, diffuseProductLoc, specularProductLoc;
 
 var lightPosition, lightPositionLoc;
+var viewerPositionLoc;
 
 var lightAmbient = vec4(0.5, 0.5, 0.5, 1.0 );
 var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
 var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
 
-//var materialAmbient = vec4( 0.99, 0.99, 0.99, 1.0 );
-var materialAmbient = vec4( 0.99, 0.99, 0.99, 1.0 );
-var materialDiffuse = vec4( 0.99, 0.99, 0.99, 1.0 );
+var materialAmbient = vec4( 0.5, 0.5, 0.5, 1.0 );
+var materialDiffuse = vec4( 0.75, 0.75, 0.75, 1.0 );
 var materialSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
-var materialShininess = 10.0;
+var materialShininess = 200.0;
 
 var eye = vec3(0,1,0);
 var at = add(eye, vec3(0,0,1));
@@ -116,9 +116,15 @@ window.onload = function init() {
 
     modelMatrixLoc = gl.getUniformLocation( program, "modelMatrix" );
     viewMatrixLoc = gl.getUniformLocation( program, "viewMatrix" );
-    projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
     gl.uniformMatrix4fv(viewMatrixLoc, false, flatten(mat4()));
-    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(mat4()));
+
+    var fovy = 30;
+    var aspect = 1024/567;
+    var near = 0.1;
+    var far = 50;
+    var projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
+    var projectionMatrix = perspective(fovy, aspect, near, far);
+    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix));
 
     ambientProductLoc = gl.getUniformLocation(program, "ambientProduct");
     diffuseProductLoc = gl.getUniformLocation(program, "diffuseProduct");
@@ -129,6 +135,10 @@ window.onload = function init() {
     var specularProduct = mult(lightSpecular, materialSpecular);
 
     changeLighting();
+
+    viewerPositionLoc = gl.getUniformLocation(program, "viewerPosition");
+
+    gl.uniform3fv(viewerPositionLoc,flatten(eye) );
 
     lightPositionLoc = gl.getUniformLocation(program, "lightPosition");
 
@@ -457,15 +467,10 @@ function changeLighting() {
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var fovy = 30;
-    var aspect = 1024/567;
-    var near = 0.1;
-    var far = 50;
     viewMatrix = lookAt(eye, at , up);
-    projectionMatrix = perspective(fovy, aspect, near, far);
 
     gl.uniformMatrix4fv( viewMatrixLoc, false, flatten(viewMatrix) );
-    gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
+    gl.uniform3fv(viewerPositionLoc,flatten(eye) );
 
     //Draw the board
     gl.uniformMatrix4fv( modelMatrixLoc, false, flatten(mat4()) );
@@ -531,6 +536,7 @@ function handleKeys() {
     if (isMovingPiece) {
         movingPiece.modelMatrix = mult(translate(fdir[0], fdir[1], fdir[2]), movingPiece.modelMatrix);
     }
+
 }
 
 //Handles rotation speed

@@ -6,50 +6,34 @@
 
 attribute vec4 vPosition;
 attribute vec4 vNormal;
-varying vec3 N, L, E;
+
+varying vec4 fColor;
+
+uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+uniform float shininess;
 uniform vec4 lightPosition;
+uniform vec3 viewerPosition;
 
 attribute vec2 vTexCoord;
 
-varying vec4 fColor;
 varying vec2 fTexCoord;
 
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
+//Modified Phong Model with vertex normals and vertex shading
 void main() 
 {
-    vec3 pos = (modelMatrix * vPosition).xyz;
-    L = normalize(lightPosition.xyz);
+    vec3 pos = viewerPosition - (modelMatrix * vPosition).xyz;
+    vec3 light = lightPosition.xyz;
+    vec3 L = normalize(lightPosition.xyz);
 
-    E =  -normalize(pos);
-    N = normalize( (modelMatrix*vNormal).xyz);
+    vec3 E = normalize(pos);
+    vec3 H = normalize(L + E);
 
-    gl_Position = projectionMatrix*viewMatrix*modelMatrix*vPosition;
-    fTexCoord = vTexCoord;
-} 
-</script>
+    vec3 N = normalize((modelMatrix*vNormal).xyz);
 
-<script id="fragment-shader" type="x-shader/x-fragment">
-precision mediump float;
-
-uniform vec4 ambientProduct;
-uniform vec4 diffuseProduct;
-uniform vec4 specularProduct;
-uniform float shininess;
-varying vec3 N, L, E;
-
-varying vec2 fTexCoord;
-
-uniform sampler2D texture;
-
-void
-main()
-{
-    vec4 fColor;
-    
-    vec3 H = normalize( L + E );
     vec4 ambient = ambientProduct;
 
     float Kd = max( dot(L, N), 0.0 );
@@ -58,13 +42,31 @@ main()
     float Ks = pow( max(dot(N, H), 0.0), shininess );
     vec4  specular = Ks * specularProduct;
     
-    if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+    if( dot(L, N) < 0.0 ) {
+	specular = vec4(0.0, 0.0, 0.0, 1.0);
+    } 
 
+    gl_Position = projectionMatrix*viewMatrix*modelMatrix*vPosition;
+    fTexCoord = vTexCoord;
     fColor = ambient + diffuse +specular;
-    fColor.a = 1.0;
 
+    fColor.a = 1.0;
+} 
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec4 fColor;
+
+varying vec2 fTexCoord;
+
+uniform sampler2D texture;
+
+void
+main()
+{
     gl_FragColor = fColor*texture2D( texture, fTexCoord );
-    //gl_FragColor = fColor;
 }
 </script>
 
