@@ -47,7 +47,6 @@ function loadMeshData(string) {
     }
     var vertexCount = vertices.length;
     return {
-        primitiveType: 'TRIANGLES',
         points: vertices,
         normals: normals,
         vertexCount: vertexCount
